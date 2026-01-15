@@ -1,0 +1,26 @@
+# Product Hunt Mailer Configuration
+
+email:
+  # Sender email address (must be verified in Resend)
+  from: "Product Hunt Digest <digest@yourdomain.com>"
+  # Email subject prefix
+  subject_prefix: "🚀 Product Hunt Daily"
+
+# List of email recipients
+recipients:
+  - name: "Eyup Ucmaz"
+    email: "eyupucmaz@gmail.com"
+  # Add more recipients as needed:
+  # - name: "Another Person"
+  #   email: "another@example.com"
+
+settings:
+  # Number of top products to include in digest
+  product_count: 5
+  # Product Hunt URL to scrape
+  product_hunt_url: "https://www.producthunt.com"
+
+gemini:
+  # Model to use for summarization
+  # Options: gemini-3-flash-preview (latest), gemini-2.5-flash
+  model: "gemini-3-flash-preview"
