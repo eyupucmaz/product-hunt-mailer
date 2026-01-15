@@ -15,6 +15,9 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Required Python version
+REQUIRED_PYTHON="3.11"
+
 # Print banner
 print_banner() {
     echo -e "${CYAN}"
@@ -45,13 +48,33 @@ print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
+# Print info
+print_info() {
+    echo -e "${CYAN}ℹ $1${NC}"
+}
+
 # Check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Compare version numbers (returns 0 if $1 >= $2)
+version_ge() {
+    [ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
+}
+
+# Get Python version
+get_python_version() {
+    if command_exists python3; then
+        python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "0.0"
+    else
+        echo "0.0"
+    fi
+}
+
 # Installation directory
 INSTALL_DIR="$HOME/product-hunt-mailer"
+UV_BIN="$HOME/.local/bin/uv"
 
 print_banner
 
@@ -62,30 +85,20 @@ echo -e "  • Resend API key (free): ${CYAN}https://resend.com${NC}"
 echo ""
 read -p "Press Enter to continue or Ctrl+C to cancel..."
 
-# Step 1: Check/Install Python
-print_step "Checking Python installation..."
-if command_exists python3; then
-    PYTHON_VERSION=$(python3 --version 2>&1 | cut -d' ' -f2)
-    print_success "Python $PYTHON_VERSION found"
-else
-    print_error "Python 3 is not installed"
-    echo "Please install Python 3.11+ first:"
-    echo "  sudo apt update && sudo apt install python3 python3-pip"
-    exit 1
-fi
-
-# Step 2: Install uv
+# Step 1: Install uv first (we need it to manage Python)
 print_step "Checking uv installation..."
 if command_exists uv; then
     print_success "uv is already installed"
+elif [ -x "$UV_BIN" ]; then
+    print_success "uv found at $UV_BIN"
 else
     print_warning "uv not found. Installing..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
     
-    # Add to current session
+    # Add to PATH for this session
     export PATH="$HOME/.local/bin:$PATH"
     
-    # Add to shell profile
+    # Add to shell profile for future sessions
     SHELL_PROFILE=""
     if [ -f "$HOME/.bashrc" ]; then
         SHELL_PROFILE="$HOME/.bashrc"
@@ -94,12 +107,33 @@ else
     fi
     
     if [ -n "$SHELL_PROFILE" ]; then
-        if ! grep -q 'local/bin' "$SHELL_PROFILE"; then
+        if ! grep -q '.local/bin' "$SHELL_PROFILE"; then
             echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_PROFILE"
         fi
     fi
     
     print_success "uv installed successfully"
+fi
+
+# Ensure uv is in PATH
+export PATH="$HOME/.local/bin:$PATH"
+
+# Step 2: Check/Install Python 3.11+
+print_step "Checking Python $REQUIRED_PYTHON+ installation..."
+
+CURRENT_PYTHON=$(get_python_version)
+
+if version_ge "$CURRENT_PYTHON" "$REQUIRED_PYTHON"; then
+    print_success "Python $CURRENT_PYTHON found (meets requirement)"
+else
+    print_warning "Python $CURRENT_PYTHON found, but $REQUIRED_PYTHON+ is required"
+    print_info "Installing Python $REQUIRED_PYTHON using uv..."
+    
+    # Install Python using uv
+    "$UV_BIN" python install $REQUIRED_PYTHON
+    
+    print_success "Python $REQUIRED_PYTHON installed via uv"
+    print_info "uv will automatically use the correct Python version"
 fi
 
 # Step 3: Clone or update repository
@@ -119,9 +153,9 @@ fi
 
 cd "$INSTALL_DIR"
 
-# Step 4: Install dependencies
+# Step 4: Install dependencies (uv will use the correct Python)
 print_step "Installing dependencies..."
-"$HOME/.local/bin/uv" sync
+"$UV_BIN" sync
 print_success "Dependencies installed"
 
 # Step 5: Configure API keys
@@ -181,7 +215,7 @@ read -p "Do you want to send a test email now? (y/N): " SEND_TEST
 
 if [[ "$SEND_TEST" =~ ^[Yy]$ ]]; then
     echo "Running test..."
-    "$HOME/.local/bin/uv" run python -m src.main
+    "$UV_BIN" run python -m src.main
 fi
 
 # Step 8: Setup cron job
@@ -195,8 +229,7 @@ echo "  4) Skip (I'll set it up manually)"
 echo ""
 read -p "Choose an option (1-4): " CRON_OPTION
 
-UV_PATH="$HOME/.local/bin/uv"
-CRON_CMD="cd $INSTALL_DIR && $UV_PATH run python -m src.main >> $INSTALL_DIR/cron.log 2>&1"
+CRON_CMD="cd $INSTALL_DIR && $UV_BIN run python -m src.main >> $INSTALL_DIR/cron.log 2>&1"
 
 case $CRON_OPTION in
     1)
@@ -217,8 +250,9 @@ if [ -n "$CRON_SCHEDULE" ]; then
     # Remove existing cron job if present
     crontab -l 2>/dev/null | grep -v "product-hunt-mailer" | crontab - 2>/dev/null || true
     
-    # Add new cron job
-    (crontab -l 2>/dev/null; echo "$CRON_SCHEDULE $CRON_CMD") | crontab -
+    # Add new cron job with PATH
+    CRON_ENTRY="$CRON_SCHEDULE PATH=\$HOME/.local/bin:\$PATH $CRON_CMD"
+    (crontab -l 2>/dev/null; echo "$CRON_ENTRY") | crontab -
     print_success "Cron job added: $CRON_SCHEDULE"
 else
     print_warning "Skipped cron setup. You can run manually with:"
