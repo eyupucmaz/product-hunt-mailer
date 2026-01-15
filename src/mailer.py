@@ -81,8 +81,11 @@ def generate_html_email(digest: DigestContent) -> str:
             <p style="font-size: 13px; color: #9ca3af; margin: 0 0 8px 0;">
                 Powered by <a href="https://www.producthunt.com" style="color: #da552f; text-decoration: none;">Product Hunt</a> & <a href="https://ai.google.dev" style="color: #4285f4; text-decoration: none;">Gemini AI</a>
             </p>
-            <p style="font-size: 12px; color: #9ca3af; margin: 0;">
+            <p style="font-size: 12px; color: #9ca3af; margin: 0 0 12px 0;">
                 You're receiving this because you subscribed to Product Hunt Daily Digest.
+            </p>
+            <p style="font-size: 12px; margin: 0;">
+                <a href="https://github.com/eyupucmaz/product-hunt-mailer" style="color: #6b7280; text-decoration: none;">⭐ Star on GitHub</a>
             </p>
         </div>
     </div>
@@ -131,6 +134,8 @@ def generate_text_email(digest: DigestContent) -> str:
 
     lines.extend([
         "Powered by Product Hunt & Gemini AI",
+        "",
+        "⭐ Star on GitHub: https://github.com/eyupucmaz/product-hunt-mailer",
         "",
     ])
 

@@ -25,7 +25,7 @@ A Python CLI tool that fetches Product Hunt's daily top launches, generates AI-p
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/product-hunt-mailer.git
+git clone https://github.com/eyupucmaz/product-hunt-mailer.git
 cd product-hunt-mailer
 ```
 
@@ -91,7 +91,7 @@ source $HOME/.local/bin/env
 
 ```bash
 cd ~
-git clone https://github.com/yourusername/product-hunt-mailer.git
+git clone https://github.com/eyupucmaz/product-hunt-mailer.git
 cd product-hunt-mailer
 
 uv sync
