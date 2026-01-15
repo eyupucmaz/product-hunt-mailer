@@ -37,6 +37,7 @@ cp .env.example .env
 ### Configuration
 
 Edit `config.yaml` to set:
+
 - Email recipients
 - Sender address
 - Number of products to include

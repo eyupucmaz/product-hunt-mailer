@@ -3,8 +3,8 @@
 import re
 from dataclasses import dataclass
 
-import httpx
 from bs4 import BeautifulSoup
+from curl_cffi import requests
 
 
 @dataclass
@@ -24,18 +24,17 @@ class ProductHuntScraper:
 
     def __init__(self, base_url: str = "https://www.producthunt.com"):
         self.base_url = base_url
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-        }
 
     def fetch_homepage(self) -> str:
-        """Fetch the Product Hunt homepage HTML."""
-        with httpx.Client(headers=self.headers, follow_redirects=True) as client:
-            response = client.get(self.base_url)
-            response.raise_for_status()
-            return response.text
+        """Fetch the Product Hunt homepage HTML using browser impersonation."""
+        # Use curl_cffi to impersonate Chrome 131 browser and bypass bot detection
+        response = requests.get(
+            self.base_url,
+            impersonate="chrome131",
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.text
 
     def parse_products(self, html: str, limit: int = 5) -> list[Product]:
         """Parse products from the homepage HTML."""

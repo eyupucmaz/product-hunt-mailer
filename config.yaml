@@ -2,7 +2,7 @@
 
 email:
   # Sender email address (must be verified in Resend)
-  from: "Product Hunt Digest <digest@yourdomain.com>"
+  from: "Product Hunt Digest <product-hunt@producthunt.eyupucmaz.dev>"
   # Email subject prefix
   subject_prefix: "🚀 Product Hunt Daily"
 

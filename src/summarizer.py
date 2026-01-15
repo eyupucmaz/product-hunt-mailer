@@ -1,9 +1,11 @@
 """Gemini AI summarizer module - Generates product summaries using Gemini API."""
 
+import json
 import os
 from dataclasses import dataclass
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from src.scraper import Product
 
@@ -72,15 +74,8 @@ class GeminiSummarizer:
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY is required. Set it in .env or pass it directly.")
 
-        genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel(
-            model_name=model_name,
-            system_instruction=SYSTEM_INSTRUCTION,
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json",
-                temperature=0.7,
-            ),
-        )
+        self.client = genai.Client(api_key=self.api_key)
+        self.model_name = model_name
 
     def summarize_products(self, products: list[Product]) -> DigestContent:
         """Generate summaries for a list of products."""
@@ -103,11 +98,17 @@ class GeminiSummarizer:
 Remember to provide a JSON response with summaries for each product and a brief intro."""
 
         # Generate content
-        response = self.model.generate_content(prompt)
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_INSTRUCTION,
+                response_mime_type="application/json",
+                temperature=0.7,
+            ),
+        )
 
         # Parse the JSON response
-        import json
-
         try:
             result = json.loads(response.text)
         except json.JSONDecodeError:
