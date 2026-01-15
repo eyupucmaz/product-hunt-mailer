@@ -1,0 +1,31 @@
+# Product Hunt Mailer Configuration
+# Copy this file to config.yaml and update with your settings:
+#   cp config.example.yaml config.yaml
+
+email:
+  # Sender email address (must be verified in Resend)
+  # See: https://resend.com/docs/dashboard/domains/introduction
+  from: "Product Hunt Digest <digest@yourdomain.com>"
+  # Email subject prefix
+  subject_prefix: "🚀 Product Hunt Daily"
+
+# List of email recipients
+recipients:
+  - name: "Your Name"
+    email: "you@example.com"
+  # Add more recipients as needed:
+  # - name: "Team Member"
+  #   email: "teammate@example.com"
+
+settings:
+  # Number of top products to include in digest (1-10)
+  product_count: 5
+  # Product Hunt URL to scrape
+  product_hunt_url: "https://www.producthunt.com"
+
+gemini:
+  # Model to use for AI summarization
+  # Options:
+  #   - gemini-3-flash-preview (latest, recommended)
+  #   - gemini-2.5-flash
+  model: "gemini-3-flash-preview"
