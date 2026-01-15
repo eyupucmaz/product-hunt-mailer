@@ -16,7 +16,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Required Python version
-REQUIRED_PYTHON="3.11"
+REQUIRED_PYTHON="3.10"
 
 # Print banner
 print_banner() {
@@ -48,39 +48,9 @@ print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
-# Print info
-print_info() {
-    echo -e "${CYAN}ℹ $1${NC}"
-}
-
 # Check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
-}
-
-# Compare version numbers (returns 0 if $1 >= $2)
-version_ge() {
-    [ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
-}
-
-# Get Python version from a specific binary
-get_python_version_from() {
-    "$1" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "0.0"
-}
-
-# Find a suitable Python 3.11+ binary
-find_python() {
-    # Check common Python binary names
-    for py in python3.13 python3.12 python3.11 python3; do
-        if command_exists "$py"; then
-            ver=$(get_python_version_from "$py")
-            if version_ge "$ver" "$REQUIRED_PYTHON"; then
-                echo "$py"
-                return 0
-            fi
-        fi
-    done
-    return 1
 }
 
 # Installation directory
@@ -96,7 +66,27 @@ echo -e "  • Resend API key (free): ${CYAN}https://resend.com${NC}"
 echo ""
 read -p "Press Enter to continue or Ctrl+C to cancel..."
 
-# Step 1: Install uv first
+# Step 1: Check Python
+print_step "Checking Python $REQUIRED_PYTHON+ installation..."
+if command_exists python3; then
+    PYTHON_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null)
+    MAJOR=$(echo "$PYTHON_VERSION" | cut -d. -f1)
+    MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
+    REQ_MAJOR=$(echo "$REQUIRED_PYTHON" | cut -d. -f1)
+    REQ_MINOR=$(echo "$REQUIRED_PYTHON" | cut -d. -f2)
+    
+    if [ "$MAJOR" -gt "$REQ_MAJOR" ] || ([ "$MAJOR" -eq "$REQ_MAJOR" ] && [ "$MINOR" -ge "$REQ_MINOR" ]); then
+        print_success "Python $PYTHON_VERSION found"
+    else
+        print_warning "Python $PYTHON_VERSION found, but $REQUIRED_PYTHON+ is required"
+        print_info "uv will automatically download and manage Python $REQUIRED_PYTHON"
+    fi
+else
+    print_warning "Python 3 is not installed"
+    print_info "uv will automatically download and manage Python $REQUIRED_PYTHON"
+fi
+
+# Step 2: Install uv
 print_step "Checking uv installation..."
 if command_exists uv; then
     print_success "uv is already installed"
@@ -129,94 +119,6 @@ fi
 # Ensure uv is in PATH
 export PATH="$HOME/.local/bin:$PATH"
 
-# Step 2: Check/Install Python 3.11+
-print_step "Checking Python $REQUIRED_PYTHON+ installation..."
-
-PYTHON_BIN=$(find_python || echo "")
-
-if [ -n "$PYTHON_BIN" ]; then
-    PYTHON_VER=$(get_python_version_from "$PYTHON_BIN")
-    print_success "Python $PYTHON_VER found ($PYTHON_BIN)"
-else
-    print_warning "Python $REQUIRED_PYTHON+ not found on system"
-    
-    # Detect OS and architecture
-    ARCH=$(uname -m)
-    
-    # Try uv python install first (works on x86_64 and aarch64)
-    if [[ "$ARCH" == "x86_64" ]] || [[ "$ARCH" == "aarch64" ]]; then
-        print_info "Installing Python $REQUIRED_PYTHON using uv..."
-        if "$UV_BIN" python install $REQUIRED_PYTHON 2>/dev/null; then
-            print_success "Python $REQUIRED_PYTHON installed via uv"
-        else
-            print_error "Failed to install Python via uv"
-        fi
-    fi
-    
-    # Check again after uv install attempt
-    PYTHON_BIN=$(find_python || echo "")
-    
-    # If still not found, try system package manager
-    if [ -z "$PYTHON_BIN" ]; then
-        print_info "Trying to install Python via system package manager..."
-        
-        # Detect package manager and install
-        if command_exists apt-get; then
-            echo ""
-            print_warning "Python $REQUIRED_PYTHON+ needs to be installed via apt."
-            echo ""
-            echo -e "For ${CYAN}Raspberry Pi OS Bookworm${NC} or ${CYAN}Debian 12+${NC}:"
-            echo -e "  ${YELLOW}sudo apt update && sudo apt install -y python3.11${NC}"
-            echo ""
-            echo -e "For ${CYAN}Raspberry Pi OS Bullseye${NC} or ${CYAN}Debian 11${NC}:"
-            echo -e "  Option 1: Upgrade to Bookworm (recommended)"
-            echo -e "  Option 2: Install from deadsnakes PPA (Ubuntu) or build from source"
-            echo ""
-            read -p "Do you want me to try 'sudo apt install python3.11'? (y/N): " TRY_APT
-            
-            if [[ "$TRY_APT" =~ ^[Yy]$ ]]; then
-                sudo apt update
-                if sudo apt install -y python3.11 python3.11-venv 2>/dev/null; then
-                    print_success "Python 3.11 installed via apt"
-                    PYTHON_BIN="python3.11"
-                else
-                    print_error "python3.11 package not available in your repositories"
-                    echo ""
-                    echo -e "${YELLOW}Your Raspberry Pi OS version doesn't have Python 3.11 in repositories.${NC}"
-                    echo ""
-                    echo "Options:"
-                    echo "  1. Upgrade to Raspberry Pi OS Bookworm (has Python 3.11)"
-                    echo "  2. Use a 64-bit Raspberry Pi OS (uv can install Python automatically)"
-                    echo ""
-                    echo "To check your OS version: cat /etc/os-release"
-                    echo "To upgrade: sudo apt update && sudo apt full-upgrade"
-                    exit 1
-                fi
-            else
-                print_error "Python $REQUIRED_PYTHON+ is required but not installed"
-                exit 1
-            fi
-        elif command_exists dnf; then
-            sudo dnf install -y python3.11
-            PYTHON_BIN="python3.11"
-        elif command_exists pacman; then
-            sudo pacman -S python
-            PYTHON_BIN="python3"
-        else
-            print_error "Could not detect package manager"
-            print_error "Please install Python $REQUIRED_PYTHON+ manually and run this script again"
-            exit 1
-        fi
-    fi
-    
-    # Final check
-    PYTHON_BIN=$(find_python || echo "")
-    if [ -z "$PYTHON_BIN" ]; then
-        print_error "Failed to install Python $REQUIRED_PYTHON+"
-        exit 1
-    fi
-fi
-
 # Step 3: Clone or update repository
 print_step "Setting up project directory..."
 if [ -d "$INSTALL_DIR" ]; then
@@ -234,7 +136,7 @@ fi
 
 cd "$INSTALL_DIR"
 
-# Step 4: Install dependencies (uv will use the correct Python)
+# Step 4: Install dependencies
 print_step "Installing dependencies..."
 "$UV_BIN" sync
 print_success "Dependencies installed"

@@ -1,5 +1,7 @@
 """Product Hunt scraper module - Fetches and parses today's top products."""
 
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
 

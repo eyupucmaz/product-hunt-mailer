@@ -2,7 +2,7 @@
 
 A Python CLI tool that fetches Product Hunt's daily top launches, generates AI-powered summaries using Gemini, and sends a beautifully formatted email digest via Resend.
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue)
+![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ## ✨ Features
@@ -27,7 +27,7 @@ This interactive script will:
 
 ## 📋 Prerequisites
 
-- Python 3.11+
+- Python 3.10+
 - [uv](https://github.com/astral-sh/uv) package manager
 - [Gemini API key](https://aistudio.google.com/apikey) (free)
 - [Resend API key](https://resend.com) (free tier available)

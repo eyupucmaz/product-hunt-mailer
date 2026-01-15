@@ -1,5 +1,7 @@
 """Email sender module - Sends digest emails via Resend API."""
 
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
 from datetime import datetime
