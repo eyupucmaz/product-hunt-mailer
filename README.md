@@ -13,6 +13,18 @@ A Python CLI tool that fetches Product Hunt's daily top launches, generates AI-p
 - ⚙️ YAML-based configuration
 - 🍓 Raspberry Pi cron job ready
 
+## ⚡ One-Line Install (Raspberry Pi / Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/eyupucmaz/product-hunt-mailer/main/install.sh | bash
+```
+
+This interactive script will:
+- Install `uv` package manager
+- Clone the repository
+- Configure your API keys and email settings
+- Set up a cron job for scheduled emails
+
 ## 📋 Prerequisites
 
 - Python 3.11+
@@ -20,7 +32,7 @@ A Python CLI tool that fetches Product Hunt's daily top launches, generates AI-p
 - [Gemini API key](https://aistudio.google.com/apikey) (free)
 - [Resend API key](https://resend.com) (free tier available)
 
-## 🚀 Quick Start
+## 🚀 Manual Setup
 
 ### 1. Clone the repository
 
