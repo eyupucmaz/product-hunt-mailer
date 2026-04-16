@@ -184,6 +184,27 @@ prompt_yes_no() {
     done
 }
 
+prompt_cron_option() {
+    local prompt="$1"
+    local var_name="$2"
+    local value=""
+
+    while true; do
+        if ! read -r -u "$INPUT_FD" -p "$prompt" value; then
+            exit_on_input_closed
+        fi
+        case "$value" in
+            1|2|3|4)
+                printf -v "$var_name" '%s' "$value"
+                return
+                ;;
+            *)
+                print_error "Please enter a number between 1 and 4."
+                ;;
+        esac
+    done
+}
+
 print_banner
 
 echo -e "This script will install Product Hunt Daily Emailer on your system."
@@ -366,9 +387,7 @@ echo "  2) Daily at 8:00 AM and 6:00 PM"
 echo "  3) Weekdays at 9:00 AM"
 echo "  4) Skip (I'll set it up manually)"
 echo ""
-if ! read -r -u "$INPUT_FD" -p "Choose an option (1-4): " CRON_OPTION; then
-    exit_on_input_closed
-fi
+prompt_cron_option "Choose an option (1-4): " CRON_OPTION
 
 CRON_CMD="cd $INSTALL_DIR && PATH=\$HOME/.local/bin:\$PATH $UV_CMD run python -m src.main >> $INSTALL_DIR/cron.log 2>&1"
 
