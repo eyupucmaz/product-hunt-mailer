@@ -43,6 +43,11 @@ print_warning() {
     echo -e "${YELLOW}⚠ $1${NC}"
 }
 
+# Print info
+print_info() {
+    echo -e "${CYAN}ℹ $1${NC}"
+}
+
 # Print error
 print_error() {
     echo -e "${RED}✗ $1${NC}"
