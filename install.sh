@@ -22,6 +22,7 @@ REQUIRED_PYTHON="3.10"
 INSTALL_DIR="$HOME/product-hunt-mailer"
 UV_BIN="$HOME/.local/bin/uv"
 UV_CMD=""
+INPUT_FD=0
 
 # Print banner
 print_banner() {
@@ -64,6 +65,21 @@ exit_on_input_closed() {
     exit 1
 }
 
+setup_input_stream() {
+    if [ -t 0 ]; then
+        INPUT_FD=0
+        return
+    fi
+
+    if [ -r /dev/tty ]; then
+        exec 3</dev/tty
+        INPUT_FD=3
+        return
+    fi
+
+    exit_on_input_closed
+}
+
 # Check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -94,7 +110,7 @@ prompt_required() {
     local value=""
 
     while true; do
-        if ! read -r -p "$prompt" value; then
+        if ! read -r -u "$INPUT_FD" -p "$prompt" value; then
             exit_on_input_closed
         fi
         if [ -n "${value// /}" ]; then
@@ -111,7 +127,7 @@ prompt_required_secret() {
     local value=""
 
     while true; do
-        if ! read -r -s -p "$prompt" value; then
+        if ! read -r -s -u "$INPUT_FD" -p "$prompt" value; then
             exit_on_input_closed
         fi
         echo ""
@@ -131,7 +147,7 @@ prompt_email() {
     local domain_part=""
 
     while true; do
-        if ! read -r -p "$prompt" value; then
+        if ! read -r -u "$INPUT_FD" -p "$prompt" value; then
             exit_on_input_closed
         fi
         if [[ "$value" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
@@ -154,7 +170,7 @@ prompt_yes_no() {
     local value=""
 
     while true; do
-        if ! read -r -p "$prompt" value; then
+        if ! read -r -u "$INPUT_FD" -p "$prompt" value; then
             exit_on_input_closed
         fi
         if [ -z "$value" ]; then
@@ -176,7 +192,8 @@ echo -e "  • Gemini API key (free): ${CYAN}https://aistudio.google.com/apikey$
 echo -e "  • Resend API key (free): ${CYAN}https://resend.com${NC}"
 echo -e "  • Verified Resend domain: ${CYAN}https://resend.com/domains${NC}"
 echo ""
-if ! read -r -p "Press Enter to continue or Ctrl+C to cancel..."; then
+setup_input_stream
+if ! read -r -u "$INPUT_FD" -p "Press Enter to continue or Ctrl+C to cancel..."; then
     exit_on_input_closed
 fi
 
@@ -349,7 +366,9 @@ echo "  2) Daily at 8:00 AM and 6:00 PM"
 echo "  3) Weekdays at 9:00 AM"
 echo "  4) Skip (I'll set it up manually)"
 echo ""
-read -r -p "Choose an option (1-4): " CRON_OPTION
+if ! read -r -u "$INPUT_FD" -p "Choose an option (1-4): " CRON_OPTION; then
+    exit_on_input_closed
+fi
 
 CRON_CMD="cd $INSTALL_DIR && PATH=\$HOME/.local/bin:\$PATH $UV_CMD run python -m src.main >> $INSTALL_DIR/cron.log 2>&1"
 
