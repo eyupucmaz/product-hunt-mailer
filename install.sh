@@ -65,6 +65,8 @@ command_exists() {
 
 escape_env() {
     local value="$1"
+    value=${value//$'\n'/}
+    value=${value//$'\r'/}
     value=${value//\\/\\\\}
     value=${value//\"/\\\"}
     value=${value//\$/\\$}
@@ -73,6 +75,8 @@ escape_env() {
 
 escape_yaml() {
     local value="$1"
+    value=${value//$'\n'/}
+    value=${value//$'\r'/}
     value=${value//\\/\\\\}
     value=${value//\"/\\\"}
     printf '%s' "$value"
@@ -113,10 +117,18 @@ prompt_email() {
     local prompt="$1"
     local var_name="$2"
     local value=""
+    local local_part=""
+    local domain_part=""
 
     while true; do
         read -r -p "$prompt" value
         if [[ "$value" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+            local_part="${value%@*}"
+            domain_part="${value#*@}"
+            if [[ "$local_part" == *..* ]] || [[ "$domain_part" == *..* ]] || [[ "$local_part" == .* ]] || [[ "$local_part" == *. ]] || [[ "$domain_part" == .* ]] || [[ "$domain_part" == *. ]]; then
+                print_error "Please enter a valid email address."
+                continue
+            fi
             printf -v "$var_name" '%s' "$value"
             return
         fi
@@ -245,6 +257,10 @@ prompt_required "Sender name (e.g., Product Hunt Digest): " SENDER_NAME
 prompt_required "Recipient name: " RECIPIENT_NAME
 prompt_email "Recipient email: " RECIPIENT_EMAIL
 
+if [[ "$SENDER_EMAIL" != *"@"* ]]; then
+    print_error "Invalid sender email format."
+    exit 1
+fi
 SENDER_DOMAIN="${SENDER_EMAIL#*@}"
 if [ "$SENDER_DOMAIN" != "$RESEND_DOMAIN" ]; then
     print_warning "Sender email domain ($SENDER_DOMAIN) does not match Resend domain ($RESEND_DOMAIN)."
