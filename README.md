@@ -4,6 +4,7 @@ A Python CLI tool that fetches Product Hunt's daily top launches, generates AI-p
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
+
 <img width="762" height="264" alt="image" src="https://github.com/user-attachments/assets/f9c3b1e3-7c7d-4e4f-ba91-43bc3551ce3d" />
 <img width="996" height="731" alt="image" src="https://github.com/user-attachments/assets/911540a8-3e2c-45e8-9406-9a8ebda48928" />
 
