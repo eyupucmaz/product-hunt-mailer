@@ -5,7 +5,7 @@
 # https://github.com/eyupucmaz/product-hunt-mailer
 #
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -17,6 +17,11 @@ NC='\033[0m' # No Color
 
 # Required Python version
 REQUIRED_PYTHON="3.10"
+
+# Installation directory
+INSTALL_DIR="$HOME/product-hunt-mailer"
+UV_BIN="$HOME/.local/bin/uv"
+UV_CMD=""
 
 # Print banner
 print_banner() {
@@ -58,9 +63,84 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Installation directory
-INSTALL_DIR="$HOME/product-hunt-mailer"
-UV_BIN="$HOME/.local/bin/uv"
+escape_env() {
+    local value="$1"
+    value=${value//\\/\\\\}
+    value=${value//\"/\\\"}
+    value=${value//\$/\\$}
+    printf '%s' "$value"
+}
+
+escape_yaml() {
+    local value="$1"
+    value=${value//\\/\\\\}
+    value=${value//\"/\\\"}
+    printf '%s' "$value"
+}
+
+prompt_required() {
+    local prompt="$1"
+    local var_name="$2"
+    local value=""
+
+    while true; do
+        read -r -p "$prompt" value
+        if [ -n "${value// /}" ]; then
+            printf -v "$var_name" '%s' "$value"
+            return
+        fi
+        print_error "This field is required."
+    done
+}
+
+prompt_required_secret() {
+    local prompt="$1"
+    local var_name="$2"
+    local value=""
+
+    while true; do
+        read -r -s -p "$prompt" value
+        echo ""
+        if [ -n "${value// /}" ]; then
+            printf -v "$var_name" '%s' "$value"
+            return
+        fi
+        print_error "This field is required."
+    done
+}
+
+prompt_email() {
+    local prompt="$1"
+    local var_name="$2"
+    local value=""
+
+    while true; do
+        read -r -p "$prompt" value
+        if [[ "$value" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+            printf -v "$var_name" '%s' "$value"
+            return
+        fi
+        print_error "Please enter a valid email address."
+    done
+}
+
+prompt_yes_no() {
+    local prompt="$1"
+    local default="$2"
+    local value=""
+
+    while true; do
+        read -r -p "$prompt" value
+        if [ -z "$value" ]; then
+            value="$default"
+        fi
+        case "$value" in
+            [Yy]) return 0 ;;
+            [Nn]) return 1 ;;
+            *) print_error "Please enter y or n." ;;
+        esac
+    done
+}
 
 print_banner
 
@@ -68,8 +148,9 @@ echo -e "This script will install Product Hunt Daily Emailer on your system."
 echo -e "You will need:"
 echo -e "  • Gemini API key (free): ${CYAN}https://aistudio.google.com/apikey${NC}"
 echo -e "  • Resend API key (free): ${CYAN}https://resend.com${NC}"
+echo -e "  • Verified Resend domain: ${CYAN}https://resend.com/domains${NC}"
 echo ""
-read -p "Press Enter to continue or Ctrl+C to cancel..."
+read -r -p "Press Enter to continue or Ctrl+C to cancel..."
 
 # Step 1: Check Python
 print_step "Checking Python $REQUIRED_PYTHON+ installation..."
@@ -79,7 +160,7 @@ if command_exists python3; then
     MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
     REQ_MAJOR=$(echo "$REQUIRED_PYTHON" | cut -d. -f1)
     REQ_MINOR=$(echo "$REQUIRED_PYTHON" | cut -d. -f2)
-    
+
     if [ "$MAJOR" -gt "$REQ_MAJOR" ] || ([ "$MAJOR" -eq "$REQ_MAJOR" ] && [ "$MINOR" -ge "$REQ_MINOR" ]); then
         print_success "Python $PYTHON_VERSION found"
     else
@@ -94,16 +175,18 @@ fi
 # Step 2: Install uv
 print_step "Checking uv installation..."
 if command_exists uv; then
-    print_success "uv is already installed"
+    UV_CMD="$(command -v uv)"
+    print_success "uv is already installed ($UV_CMD)"
 elif [ -x "$UV_BIN" ]; then
+    UV_CMD="$UV_BIN"
     print_success "uv found at $UV_BIN"
 else
     print_warning "uv not found. Installing..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    
+
     # Add to PATH for this session
     export PATH="$HOME/.local/bin:$PATH"
-    
+
     # Add to shell profile for future sessions
     SHELL_PROFILE=""
     if [ -f "$HOME/.bashrc" ]; then
@@ -111,13 +194,14 @@ else
     elif [ -f "$HOME/.zshrc" ]; then
         SHELL_PROFILE="$HOME/.zshrc"
     fi
-    
+
     if [ -n "$SHELL_PROFILE" ]; then
         if ! grep -q '.local/bin' "$SHELL_PROFILE"; then
             echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_PROFILE"
         fi
     fi
-    
+
+    UV_CMD="$UV_BIN"
     print_success "uv installed successfully"
 fi
 
@@ -128,8 +212,7 @@ export PATH="$HOME/.local/bin:$PATH"
 print_step "Setting up project directory..."
 if [ -d "$INSTALL_DIR" ]; then
     print_warning "Directory already exists: $INSTALL_DIR"
-    read -p "Do you want to update it? (y/N): " UPDATE_REPO
-    if [[ "$UPDATE_REPO" =~ ^[Yy]$ ]]; then
+    if prompt_yes_no "Do you want to update it? (y/N): " "N"; then
         cd "$INSTALL_DIR"
         git pull origin main
         print_success "Repository updated"
@@ -143,48 +226,71 @@ cd "$INSTALL_DIR"
 
 # Step 4: Install dependencies
 print_step "Installing dependencies..."
-"$UV_BIN" sync
+"$UV_CMD" sync
 print_success "Dependencies installed"
 
-# Step 5: Configure API keys
-print_step "Configuring API keys..."
+# Step 5: Configure .env and config.yaml
+print_step "Collecting configuration values..."
 echo ""
 echo -e "${YELLOW}Get your free API keys:${NC}"
 echo -e "  Gemini: ${CYAN}https://aistudio.google.com/apikey${NC}"
 echo -e "  Resend: ${CYAN}https://resend.com${NC}"
 echo ""
 
-read -p "Enter your Gemini API key: " GEMINI_KEY
-read -p "Enter your Resend API key: " RESEND_KEY
+prompt_required_secret "Gemini API key: " GEMINI_KEY
+prompt_required_secret "Resend API key: " RESEND_KEY
+prompt_required "Verified Resend domain (e.g., yourdomain.com): " RESEND_DOMAIN
+prompt_email "Sender email (e.g., digest@yourdomain.com): " SENDER_EMAIL
+prompt_required "Sender name (e.g., Product Hunt Digest): " SENDER_NAME
+prompt_required "Recipient name: " RECIPIENT_NAME
+prompt_email "Recipient email: " RECIPIENT_EMAIL
 
-cat > "$INSTALL_DIR/.env" << EOF
+SENDER_DOMAIN="${SENDER_EMAIL#*@}"
+if [ "$SENDER_DOMAIN" != "$RESEND_DOMAIN" ]; then
+    print_warning "Sender email domain ($SENDER_DOMAIN) does not match Resend domain ($RESEND_DOMAIN)."
+    if ! prompt_yes_no "Continue anyway? (y/N): " "N"; then
+        print_error "Installation aborted. Please rerun installer with matching domain values."
+        exit 1
+    fi
+fi
+
+echo ""
+print_info "Configuration summary:"
+echo -e "  Sender:    $SENDER_NAME <$SENDER_EMAIL>"
+echo -e "  Recipient: $RECIPIENT_NAME <$RECIPIENT_EMAIL>"
+echo -e "  Domain:    $RESEND_DOMAIN"
+echo ""
+if ! prompt_yes_no "Write .env and config.yaml with these values? (Y/n): " "Y"; then
+    print_error "Installation aborted by user."
+    exit 1
+fi
+
+GEMINI_KEY_ESCAPED="$(escape_env "$GEMINI_KEY")"
+RESEND_KEY_ESCAPED="$(escape_env "$RESEND_KEY")"
+RESEND_DOMAIN_ESCAPED="$(escape_env "$RESEND_DOMAIN")"
+SENDER_EMAIL_ESCAPED="$(escape_yaml "$SENDER_EMAIL")"
+SENDER_NAME_ESCAPED="$(escape_yaml "$SENDER_NAME")"
+RECIPIENT_NAME_ESCAPED="$(escape_yaml "$RECIPIENT_NAME")"
+RECIPIENT_EMAIL_ESCAPED="$(escape_yaml "$RECIPIENT_EMAIL")"
+
+cat > "$INSTALL_DIR/.env" <<EOF_ENV
 # Product Hunt Mailer - Environment Variables
 
-GEMINI_API_KEY=$GEMINI_KEY
-RESEND_API_KEY=$RESEND_KEY
-EOF
+GEMINI_API_KEY="$GEMINI_KEY_ESCAPED"
+RESEND_API_KEY="$RESEND_KEY_ESCAPED"
+RESEND_DOMAIN="$RESEND_DOMAIN_ESCAPED"
+EOF_ENV
 
-print_success "API keys configured"
-
-# Step 6: Configure email settings
-print_step "Configuring email settings..."
-echo ""
-
-read -p "Enter sender email (e.g., digest@yourdomain.com): " SENDER_EMAIL
-read -p "Enter sender name (e.g., Product Hunt Digest): " SENDER_NAME
-read -p "Enter your name: " RECIPIENT_NAME
-read -p "Enter your email address: " RECIPIENT_EMAIL
-
-cat > "$INSTALL_DIR/config.yaml" << EOF
+cat > "$INSTALL_DIR/config.yaml" <<EOF_CONFIG
 # Product Hunt Mailer Configuration
 
 email:
-  from: "$SENDER_NAME <$SENDER_EMAIL>"
+  from: "$SENDER_NAME_ESCAPED <$SENDER_EMAIL_ESCAPED>"
   subject_prefix: "🚀 Product Hunt Daily"
 
 recipients:
-  - name: "$RECIPIENT_NAME"
-    email: "$RECIPIENT_EMAIL"
+  - name: "$RECIPIENT_NAME_ESCAPED"
+    email: "$RECIPIENT_EMAIL_ESCAPED"
 
 settings:
   product_count: 5
@@ -192,21 +298,20 @@ settings:
 
 gemini:
   model: "gemini-3-flash-preview"
-EOF
+EOF_CONFIG
 
-print_success "Email settings configured"
+chmod 600 "$INSTALL_DIR/.env"
+print_success ".env and config.yaml configured"
 
-# Step 7: Test the installation
+# Step 6: Test the installation
 print_step "Testing installation..."
 echo ""
-read -p "Do you want to send a test email now? (y/N): " SEND_TEST
-
-if [[ "$SEND_TEST" =~ ^[Yy]$ ]]; then
+if prompt_yes_no "Do you want to send a test email now? (y/N): " "N"; then
     echo "Running test..."
-    "$UV_BIN" run python -m src.main
+    "$UV_CMD" run python -m src.main
 fi
 
-# Step 8: Setup cron job
+# Step 7: Setup cron job
 print_step "Setting up scheduled execution..."
 echo ""
 echo "When do you want to receive the digest?"
@@ -215,9 +320,9 @@ echo "  2) Daily at 8:00 AM and 6:00 PM"
 echo "  3) Weekdays at 9:00 AM"
 echo "  4) Skip (I'll set it up manually)"
 echo ""
-read -p "Choose an option (1-4): " CRON_OPTION
+read -r -p "Choose an option (1-4): " CRON_OPTION
 
-CRON_CMD="cd $INSTALL_DIR && PATH=\$HOME/.local/bin:\$PATH $UV_BIN run python -m src.main >> $INSTALL_DIR/cron.log 2>&1"
+CRON_CMD="cd $INSTALL_DIR && PATH=\$HOME/.local/bin:\$PATH $UV_CMD run python -m src.main >> $INSTALL_DIR/cron.log 2>&1"
 
 case $CRON_OPTION in
     1)
@@ -237,7 +342,7 @@ esac
 if [ -n "$CRON_SCHEDULE" ]; then
     # Remove existing cron job if present
     crontab -l 2>/dev/null | grep -v "product-hunt-mailer" | crontab - 2>/dev/null || true
-    
+
     # Add new cron job
     (crontab -l 2>/dev/null; echo "$CRON_SCHEDULE $CRON_CMD") | crontab -
     print_success "Cron job added: $CRON_SCHEDULE"
