@@ -301,6 +301,7 @@ gemini:
 EOF_CONFIG
 
 chmod 600 "$INSTALL_DIR/.env"
+chmod 600 "$INSTALL_DIR/config.yaml"
 print_success ".env and config.yaml configured"
 
 # Step 6: Test the installation
