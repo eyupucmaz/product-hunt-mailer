@@ -257,10 +257,6 @@ prompt_required "Sender name (e.g., Product Hunt Digest): " SENDER_NAME
 prompt_required "Recipient name: " RECIPIENT_NAME
 prompt_email "Recipient email: " RECIPIENT_EMAIL
 
-if [[ "$SENDER_EMAIL" != *"@"* ]]; then
-    print_error "Invalid sender email format."
-    exit 1
-fi
 SENDER_DOMAIN="${SENDER_EMAIL#*@}"
 if [ "$SENDER_DOMAIN" != "$RESEND_DOMAIN" ]; then
     print_warning "Sender email domain ($SENDER_DOMAIN) does not match Resend domain ($RESEND_DOMAIN)."
