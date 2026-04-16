@@ -421,7 +421,7 @@ fi
 # Done!
 echo ""
 echo -e "${GREEN}╔═══════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║              🎉 Installation Complete!                     ║${NC}"
+echo -e "${GREEN}║              🎉 Installation Complete!                    ║${NC}"
 echo -e "${GREEN}╚═══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "Installation directory: ${CYAN}$INSTALL_DIR${NC}"
