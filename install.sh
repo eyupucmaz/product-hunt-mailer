@@ -58,6 +58,12 @@ print_error() {
     echo -e "${RED}✗ $1${NC}"
 }
 
+exit_on_input_closed() {
+    echo ""
+    print_error "Input stream is closed. Please run this installer in an interactive terminal."
+    exit 1
+}
+
 # Check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -88,7 +94,9 @@ prompt_required() {
     local value=""
 
     while true; do
-        read -r -p "$prompt" value
+        if ! read -r -p "$prompt" value; then
+            exit_on_input_closed
+        fi
         if [ -n "${value// /}" ]; then
             printf -v "$var_name" '%s' "$value"
             return
@@ -103,7 +111,9 @@ prompt_required_secret() {
     local value=""
 
     while true; do
-        read -r -s -p "$prompt" value
+        if ! read -r -s -p "$prompt" value; then
+            exit_on_input_closed
+        fi
         echo ""
         if [ -n "${value// /}" ]; then
             printf -v "$var_name" '%s' "$value"
@@ -121,7 +131,9 @@ prompt_email() {
     local domain_part=""
 
     while true; do
-        read -r -p "$prompt" value
+        if ! read -r -p "$prompt" value; then
+            exit_on_input_closed
+        fi
         if [[ "$value" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
             local_part="${value%@*}"
             domain_part="${value#*@}"
@@ -142,7 +154,9 @@ prompt_yes_no() {
     local value=""
 
     while true; do
-        read -r -p "$prompt" value
+        if ! read -r -p "$prompt" value; then
+            exit_on_input_closed
+        fi
         if [ -z "$value" ]; then
             value="$default"
         fi
@@ -162,7 +176,9 @@ echo -e "  • Gemini API key (free): ${CYAN}https://aistudio.google.com/apikey$
 echo -e "  • Resend API key (free): ${CYAN}https://resend.com${NC}"
 echo -e "  • Verified Resend domain: ${CYAN}https://resend.com/domains${NC}"
 echo ""
-read -r -p "Press Enter to continue or Ctrl+C to cancel..."
+if ! read -r -p "Press Enter to continue or Ctrl+C to cancel..."; then
+    exit_on_input_closed
+fi
 
 # Step 1: Check Python
 print_step "Checking Python $REQUIRED_PYTHON+ installation..."
