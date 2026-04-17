@@ -7,6 +7,7 @@ A Python CLI tool that fetches Product Hunt's daily top launches, generates AI-p
 
 <img width="762" height="264" alt="image" src="https://github.com/user-attachments/assets/f9c3b1e3-7c7d-4e4f-ba91-43bc3551ce3d" />
 <img width="996" height="731" alt="image" src="https://github.com/user-attachments/assets/911540a8-3e2c-45e8-9406-9a8ebda48928" />
+<img width="1097" height="1163" alt="image" src="https://github.com/user-attachments/assets/784b5857-8a88-44b9-962a-3cfd4eea736f" />
 
 
 
