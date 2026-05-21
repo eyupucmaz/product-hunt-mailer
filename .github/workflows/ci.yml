@@ -39,6 +39,10 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    env:
+      PROXY_URL: ${{ secrets.PROXY_URL }}
+      HTTP_PROXY: ${{ secrets.PROXY_URL }}
+      HTTPS_PROXY: ${{ secrets.PROXY_URL }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

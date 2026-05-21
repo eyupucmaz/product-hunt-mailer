@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -50,6 +51,13 @@ def main() -> int:
 
     product_count = settings.get("product_count", 5)
     base_url = settings.get("product_hunt_url", "https://www.producthunt.com")
+    proxy_url = (
+        os.getenv("PROXY_URL")
+        or os.getenv("HTTPS_PROXY")
+        or os.getenv("HTTP_PROXY")
+        or ""
+    )
+    proxy_url = proxy_url.strip() or None
     from_email = email_config.get("from", "Product Hunt Digest <digest@example.com>")
     subject_prefix = email_config.get("subject_prefix", "🚀 Product Hunt Daily")
     model_name = gemini_config.get("model", "gemini-3-flash-preview")
@@ -70,10 +78,14 @@ def main() -> int:
         print(f"   • {r.name} <{r.email}>")
     print()
 
+    if proxy_url:
+        print("🌐 Proxy enabled")
+        print()
+
     # Step 1: Fetch products
     print(f"🔍 Fetching top {product_count} products from Product Hunt...")
     try:
-        products = fetch_products(base_url=base_url, limit=product_count)
+        products = fetch_products(base_url=base_url, limit=product_count, proxy_url=proxy_url)
     except Exception as e:
         print(f"❌ Error fetching products: {e}")
         return 1

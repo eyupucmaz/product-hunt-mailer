@@ -175,6 +175,14 @@ product-hunt-mailer/
 | `settings.product_count` | Number of products to include (1-10) |
 | `gemini.model` | Gemini model to use |
 
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `GEMINI_API_KEY` | Gemini API key |
+| `RESEND_API_KEY` | Resend API key |
+| `PROXY_URL` | Optional proxy URL for scraping (use Actions secrets in CI) |
+
 ### Gemini Models
 
 | Model | Description |

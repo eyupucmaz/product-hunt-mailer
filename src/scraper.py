@@ -24,17 +24,24 @@ class Product:
 class ProductHuntScraper:
     """Scraper for Product Hunt homepage."""
 
-    def __init__(self, base_url: str = "https://www.producthunt.com"):
+    def __init__(self, base_url: str = "https://www.producthunt.com", proxy_url: str | None = None):
         self.base_url = base_url
+        self.proxy_url = proxy_url
 
     def fetch_homepage(self) -> str:
         """Fetch the Product Hunt homepage HTML using browser impersonation."""
         # Use curl_cffi to impersonate Chrome 131 browser and bypass bot detection
-        response = requests.get(
-            self.base_url,
-            impersonate="chrome131",
-            timeout=30,
-        )
+        request_kwargs = {
+            "impersonate": "chrome131",
+            "timeout": 30,
+        }
+        if self.proxy_url:
+            request_kwargs["proxies"] = {
+                "http": self.proxy_url,
+                "https": self.proxy_url,
+            }
+
+        response = requests.get(self.base_url, **request_kwargs)
         response.raise_for_status()
         return response.text
 
@@ -127,7 +134,11 @@ class ProductHuntScraper:
         return self.parse_products(html, limit=limit)
 
 
-def fetch_products(base_url: str = "https://www.producthunt.com", limit: int = 5) -> list[Product]:
+def fetch_products(
+    base_url: str = "https://www.producthunt.com",
+    limit: int = 5,
+    proxy_url: str | None = None,
+) -> list[Product]:
     """Convenience function to fetch top products."""
-    scraper = ProductHuntScraper(base_url=base_url)
+    scraper = ProductHuntScraper(base_url=base_url, proxy_url=proxy_url)
     return scraper.get_top_products(limit=limit)
