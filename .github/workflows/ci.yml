@@ -40,9 +40,7 @@ jobs:
     if: >-
       github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     env:
-      PROXY_URL: ${{ secrets.PROXY_URL }}
-      HTTP_PROXY: ${{ secrets.PROXY_URL }}
-      HTTPS_PROXY: ${{ secrets.PROXY_URL }}
+      PRODUCT_HUNT_TOKEN: ${{ secrets.PRODUCT_HUNT_TOKEN }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -64,9 +62,10 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          PRODUCT_HUNT_TOKEN: ${{ secrets.PRODUCT_HUNT_TOKEN }}
         run: |
-          if [ -z "$GEMINI_API_KEY" ] || [ -z "$RESEND_API_KEY" ]; then
-            echo "Missing GEMINI_API_KEY or RESEND_API_KEY secrets."
+          if [ -z "$GEMINI_API_KEY" ] || [ -z "$RESEND_API_KEY" ] || [ -z "$PRODUCT_HUNT_TOKEN" ]; then
+            echo "Missing GEMINI_API_KEY, RESEND_API_KEY, or PRODUCT_HUNT_TOKEN secrets."
             exit 1
           fi
 
@@ -74,4 +73,5 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          PRODUCT_HUNT_TOKEN: ${{ secrets.PRODUCT_HUNT_TOKEN }}
         run: uv run python -m src.main

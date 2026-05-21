@@ -20,8 +20,6 @@ recipients:
 settings:
   # Number of top products to include in digest (1-10)
   product_count: 5
-  # Product Hunt URL to scrape
-  product_hunt_url: "https://www.producthunt.com"
 
 gemini:
   # Model to use for AI summarization

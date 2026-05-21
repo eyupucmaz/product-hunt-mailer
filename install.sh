@@ -301,10 +301,12 @@ echo ""
 echo -e "${YELLOW}Get your free API keys:${NC}"
 echo -e "  Gemini: ${CYAN}https://aistudio.google.com/apikey${NC}"
 echo -e "  Resend: ${CYAN}https://resend.com${NC}"
+echo -e "  Product Hunt: ${CYAN}https://www.producthunt.com/v2/oauth/applications${NC}"
 echo ""
 
 prompt_required_secret "Gemini API key: " GEMINI_KEY
 prompt_required_secret "Resend API key: " RESEND_KEY
+prompt_required_secret "Product Hunt developer token: " PRODUCT_HUNT_TOKEN
 prompt_required "Verified Resend domain (e.g., yourdomain.com): " RESEND_DOMAIN
 prompt_email "Sender email (e.g., digest@yourdomain.com): " SENDER_EMAIL
 prompt_required "Sender name (e.g., Product Hunt Digest): " SENDER_NAME
@@ -333,6 +335,7 @@ fi
 
 GEMINI_KEY_ESCAPED="$(escape_env "$GEMINI_KEY")"
 RESEND_KEY_ESCAPED="$(escape_env "$RESEND_KEY")"
+PRODUCT_HUNT_TOKEN_ESCAPED="$(escape_env "$PRODUCT_HUNT_TOKEN")"
 RESEND_DOMAIN_ESCAPED="$(escape_env "$RESEND_DOMAIN")"
 SENDER_EMAIL_ESCAPED="$(escape_yaml "$SENDER_EMAIL")"
 SENDER_NAME_ESCAPED="$(escape_yaml "$SENDER_NAME")"
@@ -344,6 +347,7 @@ cat > "$INSTALL_DIR/.env" <<EOF_ENV
 
 GEMINI_API_KEY="$GEMINI_KEY_ESCAPED"
 RESEND_API_KEY="$RESEND_KEY_ESCAPED"
+PRODUCT_HUNT_TOKEN="$PRODUCT_HUNT_TOKEN_ESCAPED"
 RESEND_DOMAIN="$RESEND_DOMAIN_ESCAPED"
 EOF_ENV
 
@@ -360,7 +364,6 @@ recipients:
 
 settings:
   product_count: 5
-  product_hunt_url: "https://www.producthunt.com"
 
 gemini:
   model: "gemini-3-flash-preview"

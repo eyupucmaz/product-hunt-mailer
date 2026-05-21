@@ -50,14 +50,11 @@ def main() -> int:
     recipients_config = config.get("recipients", [])
 
     product_count = settings.get("product_count", 5)
-    base_url = settings.get("product_hunt_url", "https://www.producthunt.com")
-    proxy_url = (
-        os.getenv("PROXY_URL")
-        or os.getenv("HTTPS_PROXY")
-        or os.getenv("HTTP_PROXY")
-        or ""
+    product_hunt_token = (
+        os.getenv("PRODUCT_HUNT_TOKEN")
+        or os.getenv("PH_ACCESS_TOKEN")
+        or os.getenv("PH_TOKEN")
     )
-    proxy_url = proxy_url.strip() or None
     from_email = email_config.get("from", "Product Hunt Digest <digest@example.com>")
     subject_prefix = email_config.get("subject_prefix", "🚀 Product Hunt Daily")
     model_name = gemini_config.get("model", "gemini-3-flash-preview")
@@ -78,14 +75,14 @@ def main() -> int:
         print(f"   • {r.name} <{r.email}>")
     print()
 
-    if proxy_url:
-        print("🌐 Proxy enabled")
-        print()
+    if not product_hunt_token:
+        print("❌ Error: PRODUCT_HUNT_TOKEN is required. Add it to .env or your environment.")
+        return 1
 
     # Step 1: Fetch products
     print(f"🔍 Fetching top {product_count} products from Product Hunt...")
     try:
-        products = fetch_products(base_url=base_url, limit=product_count, proxy_url=proxy_url)
+        products = fetch_products(limit=product_count, access_token=product_hunt_token)
     except Exception as e:
         print(f"❌ Error fetching products: {e}")
         return 1

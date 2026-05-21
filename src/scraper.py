@@ -1,12 +1,36 @@
-"""Product Hunt scraper module - Fetches and parses today's top products."""
+"""Product Hunt API client - Fetches top products via GraphQL."""
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
-from bs4 import BeautifulSoup
-from curl_cffi import requests
+import httpx
+
+API_URL = "https://api.producthunt.com/v2/api/graphql"
+GRAPHQL_QUERY = """query DailyTop($first: Int!, $after: DateTime!, $before: DateTime!) {
+  posts(
+    first: $first
+    order: RANKING
+    featured: true
+    postedAfter: $after
+    postedBefore: $before
+  ) {
+    edges {
+      node {
+        name
+        tagline
+                description
+        url
+        commentsCount
+        thumbnail { url }
+        topics { edges { node { name } } }
+      }
+    }
+  }
+}
+"""
 
 
 @dataclass
@@ -15,130 +39,109 @@ class Product:
 
     name: str
     tagline: str
+    description: str
     url: str
     image_url: str
     topics: list[str]
     comments_count: int
 
 
-class ProductHuntScraper:
-    """Scraper for Product Hunt homepage."""
+def _format_datetime(value: datetime) -> str:
+    return value.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    def __init__(self, base_url: str = "https://www.producthunt.com", proxy_url: str | None = None):
-        self.base_url = base_url
-        self.proxy_url = proxy_url
 
-    def fetch_homepage(self) -> str:
-        """Fetch the Product Hunt homepage HTML using browser impersonation."""
-        # Use curl_cffi to impersonate Chrome 131 browser and bypass bot detection
-        request_kwargs = {
-            "impersonate": "chrome131",
-            "timeout": 30,
-        }
-        if self.proxy_url:
-            request_kwargs["proxies"] = {
-                "http": self.proxy_url,
-                "https": self.proxy_url,
-            }
+def _last_24h_range() -> tuple[str, str]:
+    now = datetime.now(timezone.utc)
+    after = now - timedelta(days=1)
+    return _format_datetime(after), _format_datetime(now)
 
-        response = requests.get(self.base_url, **request_kwargs)
-        response.raise_for_status()
-        return response.text
 
-    def parse_products(self, html: str, limit: int = 5) -> list[Product]:
-        """Parse products from the homepage HTML."""
-        soup = BeautifulSoup(html, "html.parser")
-        products: list[Product] = []
+def _extract_topics(node: dict[str, Any]) -> list[str]:
+    topics: list[str] = []
+    for edge in node.get("topics", {}).get("edges", []) or []:
+        name = (edge.get("node", {}) or {}).get("name")
+        if name:
+            topics.append(str(name).strip())
+    return topics
 
-        # Find all product sections using data-test attribute pattern
-        product_sections = soup.find_all(
-            "section", attrs={"data-test": re.compile(r"^post-item-\d+$")}
+
+def _format_errors(errors: list[dict[str, Any]]) -> str:
+    messages: list[str] = []
+    for error in errors:
+        if not isinstance(error, dict):
+            continue
+        message = (
+            error.get("message")
+            or error.get("error_description")
+            or error.get("error")
         )
+        if message:
+            messages.append(str(message))
+    return "; ".join(messages) or "Unknown API error"
 
-        for section in product_sections[:limit]:
-            product = self._parse_product_section(section)
-            if product:
-                products.append(product)
+
+class ProductHuntClient:
+    """Product Hunt GraphQL client."""
+
+    def __init__(self, access_token: str, api_url: str = API_URL, timeout: int = 30):
+        if not access_token or not access_token.strip():
+            raise ValueError("PRODUCT_HUNT_TOKEN is required. Set it in .env or pass it directly.")
+        self.access_token = access_token.strip()
+        self.api_url = api_url
+        self.timeout = timeout
+
+    def fetch_top_products(self, limit: int = 5) -> list[Product]:
+        after, before = _last_24h_range()
+        payload = {
+            "query": GRAPHQL_QUERY,
+            "variables": {
+                "first": int(limit),
+                "after": after,
+                "before": before,
+            },
+        }
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+
+        response = httpx.post(
+            self.api_url,
+            json=payload,
+            headers=headers,
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        errors = data.get("errors") or []
+        if errors:
+            raise RuntimeError(_format_errors(errors))
+
+        edges = data.get("data", {}).get("posts", {}).get("edges", []) or []
+        products: list[Product] = []
+        for edge in edges:
+            node = edge.get("node") if isinstance(edge, dict) else None
+            if not node:
+                continue
+            products.append(self._parse_product(node))
 
         return products
 
-    def _parse_product_section(self, section: BeautifulSoup) -> Product | None:
-        """Parse a single product section."""
-        try:
-            # Extract product name
-            name_span = section.find("span", attrs={"data-test": re.compile(r"^post-name-")})
-            if not name_span:
-                return None
-
-            name_link = name_span.find("a")
-            if not name_link:
-                return None
-
-            name = name_link.get_text(strip=True)
-            product_path = name_link.get("href", "")
-            url = f"{self.base_url}{product_path}" if product_path.startswith("/") else product_path
-
-            # Extract tagline
-            tagline_span = section.find("span", class_=lambda c: c and "text-secondary" in c)
-            tagline = tagline_span.get_text(strip=True) if tagline_span else ""
-
-            # Extract image URL
-            img = section.find("img")
-            image_url = ""
-            if img:
-                # Try to get from srcset first (higher quality), fallback to src
-                srcset = img.get("srcset", "")
-                if srcset:
-                    # Get the first URL from srcset
-                    first_src = srcset.split(",")[0].strip().split(" ")[0]
-                    image_url = first_src
-                else:
-                    image_url = img.get("src", "")
-
-            # Extract topics
-            topics: list[str] = []
-            topic_links = section.find_all("a", href=re.compile(r"^/topics/"))
-            for link in topic_links:
-                topic_text = link.get_text(strip=True)
-                if topic_text:
-                    topics.append(topic_text)
-
-            # Extract comments count
-            comments_count = 0
-            # Find the comment button (first button with a number)
-            buttons = section.find_all("button")
-            for button in buttons:
-                p_tag = button.find("p")
-                if p_tag:
-                    text = p_tag.get_text(strip=True)
-                    if text.isdigit():
-                        comments_count = int(text)
-                        break
-
-            return Product(
-                name=name,
-                tagline=tagline,
-                url=url,
-                image_url=image_url,
-                topics=topics,
-                comments_count=comments_count,
-            )
-
-        except Exception as e:
-            print(f"Error parsing product section: {e}")
-            return None
-
-    def get_top_products(self, limit: int = 5) -> list[Product]:
-        """Fetch and return the top products from Product Hunt."""
-        html = self.fetch_homepage()
-        return self.parse_products(html, limit=limit)
+    def _parse_product(self, node: dict[str, Any]) -> Product:
+        thumbnail = node.get("thumbnail") or {}
+        return Product(
+            name=str(node.get("name") or "").strip(),
+            tagline=str(node.get("tagline") or "").strip(),
+            description=str(node.get("description") or "").strip(),
+            url=str(node.get("url") or "").strip(),
+            image_url=str(thumbnail.get("url") or "").strip(),
+            topics=_extract_topics(node),
+            comments_count=int(node.get("commentsCount") or 0),
+        )
 
 
-def fetch_products(
-    base_url: str = "https://www.producthunt.com",
-    limit: int = 5,
-    proxy_url: str | None = None,
-) -> list[Product]:
+def fetch_products(limit: int = 5, access_token: str | None = None) -> list[Product]:
     """Convenience function to fetch top products."""
-    scraper = ProductHuntScraper(base_url=base_url, proxy_url=proxy_url)
-    return scraper.get_top_products(limit=limit)
+    client = ProductHuntClient(access_token=access_token or "")
+    return client.fetch_top_products(limit=limit)

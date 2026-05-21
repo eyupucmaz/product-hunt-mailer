@@ -89,6 +89,7 @@ class GeminiSummarizer:
             f"Product {i + 1}:\n"
             f"- Name: {p.name}\n"
             f"- Tagline: {p.tagline}\n"
+            f"- Description: {p.description if p.description else 'N/A'}\n"
             f"- Topics: {', '.join(p.topics) if p.topics else 'N/A'}"
             for i, p in enumerate(products)
         )

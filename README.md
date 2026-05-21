@@ -14,7 +14,7 @@ A Python CLI tool that fetches Product Hunt's daily top launches, generates AI-p
 
 ## ✨ Features
 
-- 🔍 Scrapes top products from Product Hunt homepage
+- 🔍 Fetches top products from Product Hunt API
 - 🤖 AI-powered summaries using Gemini 3 Flash Preview (free tier)
 - 📧 Beautiful HTML email templates
 - ⚙️ YAML-based configuration
@@ -38,6 +38,7 @@ This interactive script will:
 - [uv](https://github.com/astral-sh/uv) package manager
 - [Gemini API key](https://aistudio.google.com/apikey) (free)
 - [Resend API key](https://resend.com) (free tier available)
+- [Product Hunt developer token](https://www.producthunt.com/v2/oauth/applications)
 
 ## 🚀 Manual Setup
 
@@ -69,6 +70,7 @@ Edit `.env` and add your API keys:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 RESEND_API_KEY=your_resend_api_key_here
+PRODUCT_HUNT_TOKEN=your_product_hunt_token_here
 ```
 
 ### 4. Configure email settings
@@ -158,7 +160,7 @@ product-hunt-mailer/
 └── src/
     ├── __init__.py
     ├── main.py           # CLI entry point
-    ├── scraper.py        # Product Hunt scraper
+  ├── scraper.py        # Product Hunt API client
     ├── summarizer.py     # Gemini AI integration
     └── mailer.py         # Resend email sender
 ```
@@ -181,7 +183,7 @@ product-hunt-mailer/
 |----------|-------------|
 | `GEMINI_API_KEY` | Gemini API key |
 | `RESEND_API_KEY` | Resend API key |
-| `PROXY_URL` | Optional proxy URL for scraping (use Actions secrets in CI) |
+| `PRODUCT_HUNT_TOKEN` | Product Hunt developer token or OAuth access token |
 
 ### Gemini Models
 
@@ -194,7 +196,7 @@ product-hunt-mailer/
 
 | Issue | Solution |
 |-------|----------|
-| `403 Forbidden` | The scraper uses browser impersonation to bypass bot detection. If issues persist, try updating `curl_cffi`. |
+| `invalid_oauth_token` | Token is invalid or expired. Use a valid developer token or refresh OAuth token. |
 | `GEMINI_API_KEY required` | Make sure `.env` file exists and contains your API key (uncommented) |
 | Cron not running | Use absolute paths for `uv` in crontab. Check with `which uv` |
 | No email received | Check Resend dashboard for delivery status. Verify sender domain. |
