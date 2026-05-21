@@ -38,9 +38,7 @@ jobs:
   send-digest:
     runs-on: ubuntu-latest
     if: >-
-      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
-      && secrets.GEMINI_API_KEY != ''
-      && secrets.RESEND_API_KEY != ''
+      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -57,6 +55,16 @@ jobs:
 
       - name: Install dependencies
         run: uv sync
+
+      - name: Verify required secrets
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ] || [ -z "$RESEND_API_KEY" ]; then
+            echo "Missing GEMINI_API_KEY or RESEND_API_KEY secrets."
+            exit 1
+          fi
 
       - name: Send daily digest
         env:
